@@ -211,14 +211,17 @@ def ligand_rmsd_by_atom_name(ref_lig_u, mob_lig_u):
 ap = argparse.ArgumentParser()
 ap.add_argument('--pdbid', required=True)
 ap.add_argument('--out_csv', required=True)
+ap.add_argument('--base_dir', required=True)
+ap.add_argument('--cryst_dir', required=True)
 args = ap.parse_args()
+
+base_dir = args.base_dir
+cryst_dir = args.cryst_dir
 
 pdbid = str(args.pdbid).strip().lower()
 out_csv = Path(args.out_csv)
 out_csv.parent.mkdir(parents=True, exist_ok=True)
 
-base_dir = '/mnt/scratch/jeaves/CASF-2016'
-cryst_dir = f'{base_dir}/coreset'
 
 sources = {'Rosetta': 'rosetta',
            'GNINA-Crystal': 'gnina',
