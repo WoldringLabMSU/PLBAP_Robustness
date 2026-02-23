@@ -1,0 +1,25 @@
+source,int_type,median_top1,median_top100,W,p,significant (p<0.05)
+GNINA-Crystal,hydrophobic_interaction,5.0,4.5,3843.5,0.00035820773398919774,True
+GNINA-Crystal,hydrogen_bond,4.0,4.0,2666.0,2.7347908961842767e-06,True
+GNINA-Crystal,salt_bridge,0.0,0.0,111.0,0.14332109190014503,False
+GNINA-Crystal,pi_stack,0.0,0.0,309.0,0.10498864799370898,False
+GNINA-Crystal,pi_cation_interaction,0.0,0.0,12.5,0.7920689965469446,False
+GNINA-Crystal,halogen_bond,0.0,0.0,4.0,0.034808478811867126,True
+GNINA-Apo,hydrophobic_interaction,4.0,3.0,4927.5,2.9535155028992617e-08,True
+GNINA-Apo,hydrogen_bond,3.0,2.0,2789.0,5.015265993542973e-18,True
+GNINA-Apo,salt_bridge,0.0,0.0,178.5,7.759786835777063e-07,True
+GNINA-Apo,pi_stack,0.0,0.0,299.0,1.381197256526447e-06,True
+GNINA-Apo,pi_cation_interaction,0.0,0.0,12.0,3.901719447912536e-05,True
+GNINA-Apo,halogen_bond,0.0,0.0,19.0,0.000967428450247743,True
+GNINA-AF3,hydrophobic_interaction,1.0,0.0,889.0,7.103111784229888e-13,True
+GNINA-AF3,hydrogen_bond,0.0,0.0,1789.0,2.5365630035852027e-05,True
+GNINA-AF3,salt_bridge,0.0,0.0,8.0,0.0002891836009857012,True
+GNINA-AF3,pi_stack,0.0,0.0,38.0,0.00607762087650656,True
+GNINA-AF3,pi_cation_interaction,0.0,0.0,0.0,0.00010711718505613725,True
+GNINA-AF3,halogen_bond,0.0,0.0,0.0,0.025347318677468252,True
+AlphaFold3,hydrophobic_interaction,4.0,4.0,3045.5,0.3951748656954449,False
+AlphaFold3,hydrogen_bond,3.0,3.0,2972.5,0.17126844092965166,False
+AlphaFold3,salt_bridge,0.0,0.0,52.0,0.6337943727463906,False
+AlphaFold3,pi_stack,0.0,0.0,116.0,0.19469827954308971,False
+AlphaFold3,pi_cation_interaction,0.0,0.0,13.5,0.47950012218695337,False
+AlphaFold3,halogen_bond,0.0,0.0,0.0,0.04550026389635839,True
