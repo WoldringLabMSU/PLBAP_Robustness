@@ -1,8 +1,8 @@
 # Robustness of Protein-Ligand Binding Affinity Prediction Models to Docked and Predicted Structures
 
 **Joelle N. Eaves and Daniel R. Woldring**
-Department of Chemical Engineering and Materials Science, Michigan State University
-Institute for Quantitative Health Science and Engineering, Michigan State University
+Department of Chemical Engineering and Materials Science, Michigan State University  
+Institute for Quantitative Health Science and Engineering, Michigan State University  
 
 Manuscript submitted to the *Journal of Chemical Information and Modeling*, 2026. Under editorial review.
 
