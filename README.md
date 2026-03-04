@@ -153,7 +153,7 @@ The conda environment used to execute the scripts in this repository is `analysi
 `conda env create -f analysis_environment.yml`
 
 
-The SLURM submission script (`submit_rmsd_pipeline.sh`) is specific to the MSU HPCC environment and references internal data paths; it is provided for reproducibility documentation.
+All SLURM submission scripts are specific to the MSU HPCC environment and reference internal data paths and modules. These scripts are provided for reproducibility documentation.
 
 ---
 
