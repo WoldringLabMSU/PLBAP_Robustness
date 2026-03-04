@@ -95,6 +95,43 @@ Computes structural perturbations of generated structures relative to experiment
 
 ---
 
+## Structure Generation
+
+All five structure sources were generated on the MSU HPCC and applied to the 285 CASF-2016 complexes. Raw structure files are available at [10.5281/zenodo.18701481](https://doi.org/10.5281/zenodo.18701481).
+
+### Crystal
+Experimental co-crystal structures were taken directly from the CASF-2016 benchmark set (PDBbind v2016). (Su et al. *J. Chem. Inf. Model.* 2019, 59, 895–913; Wang et al. *J. Med. Chem.* 2005, 48, 4111–4119)
+
+### GNINA Docking (GNINA-Crystal and GNINA-Apo)
+Docking was performed with [GNINA v1.3.1](https://github.com/gnina/gnina) (McNutt et al. *J. Cheminform.* 2025, 17, 28) using the [WoldringLabMSU GNINA docking pipeline](https://github.com/WoldringLabMSU/GNINA-Docking-Pipeline). Ligands were specified from OpenEye SMILES strings (RCSB LigandExpo) and converted to SDF with OpenBabel (O'Boyle et al. *J. Cheminform.* 2011, 3, 33). Binding-pocket boxes were defined from PDBbind pocket residue files. GNINA was executed inside a Singularity container with GPU acceleration; up to 1,000 poses were generated per complex and the top 100 retained.
+
+- **GNINA-Crystal**: docking into holo co-crystal receptor structures from CASF-2016.
+- **GNINA-Apo**: docking into experimentally resolved apo receptor conformers (aligned to the holo receptor to transfer the binding-site coordinate frame).
+
+### AlphaFold3 Co-folding (AlphaFold3)
+Protein-ligand co-folding was performed with AlphaFold3 (Abramson et al. *Nature* 2024, 630, 493–500) using the [WoldringLabMSU AlphaFold3 pipeline](https://github.com/WoldringLabMSU/AlphaFold3-Pipeline). MSAs were generated via ColabFold/MMseqs2 and referenced in per-target AF3 JSON inputs. AF3 inference ran inside a Singularity image on MSU HPCC GPU nodes; 100 predictions were generated per complex.
+
+### GNINA Docking into AlphaFold3 Receptors (GNINA-AF3)
+Protein-only AF3 structures were generated (same pipeline as above), aligned to the corresponding crystal receptor to transfer the binding-site coordinate frame, and used as rigid receptors for GNINA docking following the same protocol as GNINA-Crystal.
+
+---
+
+## PLBAP Models
+
+Five models were evaluated in inference-only mode (no retraining) using author-provided pipelines with minimal modifications for batch processing and software-dependency compatibility. Docked/predicted structures were converted to each model's required input format (PDB, MOL2, SDF as needed via OpenBabel) without altering atomic coordinates.
+
+| Model | Citation | Original Repository | Study Fork |
+|---|---|---|---|
+| Dynaformer | Min et al. *Advanced Science* 2024, 11, 2405404 | [Minys233/Dynaformer](https://github.com/Minys233/Dynaformer) | [jeavesj/Dynaformer](https://github.com/jeavesj/Dynaformer) |
+| EGNA | Xia et al. *Briefings in Bioinformatics* 2023, 24, bbac603 | [gnina/EGNA](https://github.com/gnina/EGNA) | [jeavesj/EGNA](https://github.com/jeavesj/EGNA) |
+| EHIGN-PLA | Yang et al. *IEEE Trans. Pattern Anal. Mach. Intell.* 2024, 46, 8194–8208 | [guaguaujiaile/EHIGN\_PLA](https://github.com/guaguaujiaile/EHIGN_PLA) | [jeavesj/EHIGN\_PLA](https://github.com/jeavesj/EHIGN_PLA) |
+| GIGN | Yang et al. *J. Phys. Chem. Lett.* 2023, 14, 2920–2933 | [guaguaujiaile/GIGN](https://github.com/guaguaujiaile/GIGN) | [jeavesj/GIGN](https://github.com/jeavesj/GIGN) |
+| OnionNet-2 | Wang et al. *Front. Chem.* 2021, 9, 753002 | [zehwang/OnionNet-2](https://github.com/zehwang/OnionNet-2) | [jeavesj/OnionNet-2](https://github.com/jeavesj/OnionNet-2) |
+
+All predictions were collected into the standardized CSV described under [Data](#data) below.
+
+---
+
 ## Data
 
 The primary input data file (`performance_comparison/2026-02-11_CASF2016_Docking-Comparison_All-Results-W-Scores.csv`) contains model predictions for all CASF-2016 complexes across all structure sources and poses. This file is the input for both the performance comparison and multi-pose analyses.
