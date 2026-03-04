@@ -4,7 +4,7 @@
 Department of Chemical Engineering and Materials Science, Michigan State University
 Institute for Quantitative Health Science and Engineering, Michigan State University
 
-*Journal of Chemical Information and Modeling*, 2026
+Manuscript submitted to the *Journal of Chemical Information and Modeling*, 2026. Under editorial review.
 
 ---
 
@@ -161,7 +161,7 @@ All SLURM submission scripts are specific to the MSU HPCC environment and refere
 
 If you use this code or data, please cite:
 
-> Eaves, J. N.; Woldring, D. R. Robustness of Protein-Ligand Binding Affinity Prediction Models to Docked and Predicted Structures. *J. Chem. Inf. Model.* **2026**.
+> Eaves, J. N.; Woldring, D. R. Robustness of Protein-Ligand Binding Affinity Prediction Models to Docked and Predicted Structures. 2026. **TO BE UPDATED. PENDING REVIEW.**.
 
 ---
 
