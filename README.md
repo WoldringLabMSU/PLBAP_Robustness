@@ -127,10 +127,10 @@ Five models were evaluated in inference-only mode (no retraining) using author-p
 | Model | Citation | Original Repository | Study Fork |
 |---|---|---|---|
 | Dynaformer | Min et al. *Advanced Science* 2024, 11, 2405404 | [Minys233/Dynaformer](https://github.com/Minys233/Dynaformer) | [jeavesj/Dynaformer](https://github.com/jeavesj/Dynaformer) |
-| EGNA | Xia et al. *Briefings in Bioinformatics* 2023, 24, bbac603 | [gnina/EGNA](https://github.com/gnina/EGNA) | [jeavesj/EGNA](https://github.com/jeavesj/EGNA) |
-| EHIGN-PLA | Yang et al. *IEEE Trans. Pattern Anal. Mach. Intell.* 2024, 46, 8194–8208 | [guaguaujiaile/EHIGN\_PLA](https://github.com/guaguaujiaile/EHIGN_PLA) | [jeavesj/EHIGN\_PLA](https://github.com/jeavesj/EHIGN_PLA) |
-| GIGN | Yang et al. *J. Phys. Chem. Lett.* 2023, 14, 2920–2933 | [guaguaujiaile/GIGN](https://github.com/guaguaujiaile/GIGN) | [jeavesj/GIGN](https://github.com/jeavesj/GIGN) |
-| OnionNet-2 | Wang et al. *Front. Chem.* 2021, 9, 753002 | [zehwang/OnionNet-2](https://github.com/zehwang/OnionNet-2) | [jeavesj/OnionNet-2](https://github.com/jeavesj/OnionNet-2) |
+| EGNA | Xia et al. *Briefings in Bioinformatics* 2023, 24, bbac603 | [chunqiux/EGNA/](https://github.com/chunqiux/EGNA) | [jeavesj/EGNA](https://github.com/jeavesj/EGNA) |
+| EHIGN-PLA | Yang et al. *IEEE Trans. Pattern Anal. Mach. Intell.* 2024, 46, 8194–8208 | [guaguabujianle/EHIGN\_PLA](https://github.com/guaguabujianle/EHIGN_PLA) | [jeavesj/EHIGN\_PLA](https://github.com/jeavesj/EHIGN_PLA) |
+| GIGN | Yang et al. *J. Phys. Chem. Lett.* 2023, 14, 2920–2933 | [guaguabujianle/GIGN](https://github.com/guaguabujianle/GIGN) | [jeavesj/GIGN](https://github.com/jeavesj/GIGN) |
+| OnionNet-2 | Wang et al. *Front. Chem.* 2021, 9, 753002 | [zchwang/OnionNet-2](https://github.com/zchwang/OnionNet-2) | [jeavesj/OnionNet-2](https://github.com/jeavesj/OnionNet-2) |
 
 All predictions were collected into the standardized CSV described under [Data](#data) below.
 
