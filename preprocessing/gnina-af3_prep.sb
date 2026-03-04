@@ -1,0 +1,191 @@
+#!/bin/bash --login
+#SBATCH --job-name=pose_prep_gnina
+#SBATCH --time=00:20:00
+#SBATCH --mem=8G
+#SBATCH --cpus-per-task=2
+#SBATCH --output=/mnt/scratch/jeaves/CASF-2016/gnina-af3/logs/%x_%A_%a.out
+#SBATCH --error=/mnt/scratch/jeaves/CASF-2016/gnina-af3/logs/%x_%A_%a.err
+#SBATCH --array=1-285%50
+
+set -euo pipefail
+
+skip() { echo "[INFO] $*"; exit 0; }
+warn_skip() { echo "[WARN] $*" >&2; exit 0; }
+fail() { echo "[ERROR] $*" >&2; exit 1; }
+
+module purge
+module load Miniforge3
+conda activate prep_env
+
+CSV_PATH="/mnt/research/woldring_lab/Members/Eaves/plip-plop/AF3/casf2016_smiles_seqs.csv"
+
+# IMPORTANT: flat dir with per-target archives like 3ao4.tar.gz, 3gv9.tar.gz, ...
+IN_DIR="/mnt/scratch/jeaves/GNINA-Docking-Pipeline/output"
+
+# scratch + logs for gnina prep
+OUT_DIR="/mnt/scratch/jeaves/CASF-2016/gnina-af3"
+LOG_DIR="${OUT_DIR}/logs"
+
+# final per-rank outputs: /mnt/scratch/jeaves/CASF-2016/gnina-af3_best0001/<pdbid>/...
+OUT_POSE_ROOT="/mnt/scratch/jeaves/CASF-2016/gnina-af3_best"
+
+# script path
+PREP_POSES="/mnt/research/woldring_lab/Members/Eaves/plip-plop/preprocessing/prep_poses.py"
+
+mkdir -p "$OUT_DIR" "$LOG_DIR" "$OUT_POSE_ROOT"
+
+echo "[INFO] Starting job on $(hostname) at $(date)"
+echo "[INFO] CSV: $CSV_PATH"
+echo "[INFO] IN_DIR: $IN_DIR"
+echo "[INFO] OUT_DIR: $OUT_DIR"
+echo "[INFO] OUT_POSE_ROOT: $OUT_POSE_ROOT"
+echo
+
+TASK_ID="${SLURM_ARRAY_TASK_ID:-1}"
+LINE_NO=$((TASK_ID + 1))
+
+row="$(sed -n "${LINE_NO}p" "$CSV_PATH")"
+if [[ -z "${row// /}" ]]; then
+  warn_skip "No data on line $LINE_NO (task $TASK_ID)"
+fi
+
+IFS=',' read -r pdbid smiles sequence <<< "$row"
+# sanitize pdbid
+pdbid="${pdbid//$'\r'/}"
+pdbid="${pdbid//\"/}"
+pdbid="$(echo "$pdbid" | xargs)"
+[[ -z "${pdbid:-}" ]] && warn_skip "Empty pdbid on line $LINE_NO (task $TASK_ID)"
+
+echo "[INFO] ===== $pdbid ====="
+
+# AF3 receptor CIF produced earlier in your pipeline
+GNINA_RECEPTOR="${OUT_DIR}/${pdbid}/${pdbid}_protein-AF3.pdb"
+
+# ------------------------------------------------------------
+# Pre-check: if ALL top-100 gnina ranks already complete, skip
+# ------------------------------------------------------------
+all_done=1
+for r in $(seq 1 100); do
+    rank_tag="$(printf "%04d" "$r")"
+    GNINA_OUT_POSE="${OUT_POSE_ROOT}${rank_tag}/${pdbid}"
+
+    DONE_MARKER="${GNINA_OUT_POSE}/DONE.marker"
+    EXPECT_PROT="${GNINA_OUT_POSE}/${pdbid}_protein.pdb"
+    EXPECT_LIGPDB="${GNINA_OUT_POSE}/${pdbid}_ligand.pdb"
+    EXPECT_LIGSDF="${GNINA_OUT_POSE}/${pdbid}_ligand.sdf"
+    EXPECT_LIGMOL2="${GNINA_OUT_POSE}/${pdbid}_ligand.mol2"
+
+    if [[ ! -f "$DONE_MARKER" || ! -s "$EXPECT_PROT" || ! -s "$EXPECT_LIGPDB" || ! -s "$EXPECT_LIGSDF" || ! -s "$EXPECT_LIGMOL2" ]]; then
+        all_done=0
+        break
+    fi
+done
+
+if [[ "$all_done" -eq 1 ]]; then
+    skip "$pdbid already complete for gnina-af3 ranks 0001-0100. Skipping."
+fi
+# ------------------------------------------------------------
+
+# Input checks
+GNINA_TAR="${IN_DIR}/${pdbid}_v2.tar.gz"
+if [[ ! -f "$GNINA_TAR" ]]; then
+    warn_skip "Missing gnina archive for $pdbid: $GNINA_TAR"
+fi
+
+if [[ ! -f "$GNINA_RECEPTOR" ]]; then
+    warn_skip "Missing receptor for $pdbid: $GNINA_RECEPTOR"
+fi
+
+mkdir -p "${OUT_DIR}/${pdbid}"
+
+# Extract archive
+WORKBASE="${OUT_DIR}/${pdbid}"
+WORKDIR="${WORKBASE}/_extract"
+rm -rf "$WORKDIR"
+mkdir -p "$WORKDIR"
+
+echo "[INFO] Extracting: $GNINA_TAR -> $WORKDIR"
+if ! tar -xzf "$GNINA_TAR" -C "$WORKDIR"; then
+    warn_skip "Tar extract failed for $pdbid: $GNINA_TAR. Skipping."
+fi
+
+# Locate where pose files live inside the extracted tree
+pose_0001_path="$(find "$WORKDIR" -maxdepth 4 -type f \( -name 'pose_0001.sdf.gz' -o -name 'pose_0001.sdf' \) | head -n 1 || true)"
+if [[ -z "${pose_0001_path:-}" ]]; then
+    warn_skip "Could not find pose_0001.sdf(.gz) inside extracted archive for $pdbid. Skipping."
+fi
+
+POSE_DIR="$(dirname "$pose_0001_path")"
+nposes_found="$(find "$POSE_DIR" -maxdepth 1 -type f \( -name 'pose_*.sdf.gz' -o -name 'pose_*.sdf' \) | wc -l | xargs)"
+echo "[INFO] Found poses in: $POSE_DIR  (count=${nposes_found})"
+
+# Process ranks 0001..0100
+for r in $(seq 1 100); do
+    rank_tag="$(printf "%04d" "$r")"
+    GNINA_OUT_POSE="${OUT_POSE_ROOT}${rank_tag}/${pdbid}"
+    mkdir -p "$GNINA_OUT_POSE"
+
+    DONE_MARKER="${GNINA_OUT_POSE}/DONE.marker"
+    EXPECT_PROT="${GNINA_OUT_POSE}/${pdbid}_protein.pdb"
+    EXPECT_LIGPDB="${GNINA_OUT_POSE}/${pdbid}_ligand.pdb"
+    EXPECT_LIGSDF="${GNINA_OUT_POSE}/${pdbid}_ligand.sdf"
+    EXPECT_LIGMOL2="${GNINA_OUT_POSE}/${pdbid}_ligand.mol2"
+
+    # Skip this rank if already done
+    if [[ -f "$DONE_MARKER" && -s "$EXPECT_PROT" && -s "$EXPECT_LIGPDB" && -s "$EXPECT_LIGSDF" && -s "$EXPECT_LIGMOL2" ]]; then
+        echo "[INFO] ($pdbid) rank=$rank_tag already done -> skipping"
+        continue
+    fi
+
+    # Prefer gz if present, else plain sdf
+    POSE_GZ="${POSE_DIR}/pose_${rank_tag}.sdf.gz"
+    POSE_SDF="${POSE_DIR}/pose_${rank_tag}.sdf"
+
+    TMP_SDF="${WORKBASE}/pose_${rank_tag}.sdf"
+    rm -f "$TMP_SDF"
+
+    if [[ -f "$POSE_GZ" ]]; then
+        if ! gunzip -c "$POSE_GZ" > "$TMP_SDF" 2>> "${LOG_DIR}/gnina_gunzip_errors.log"; then
+            echo "[WARN] gunzip failed for $pdbid rank=$rank_tag: $POSE_GZ" >&2
+            rm -f "$TMP_SDF"
+            continue
+        fi
+    elif [[ -f "$POSE_SDF" ]]; then
+        cp -f "$POSE_SDF" "$TMP_SDF"
+    else
+        echo "[WARN] Missing pose for $pdbid rank=$rank_tag (no .sdf.gz or .sdf in $POSE_DIR)" >&2
+        continue
+    fi
+
+    if [[ ! -s "$TMP_SDF" ]]; then
+        echo "[WARN] Pose SDF empty for $pdbid rank=$rank_tag" >&2
+        rm -f "$TMP_SDF"
+        continue
+    fi
+
+    echo "[INFO] ($pdbid) gnina rank=$rank_tag -> $GNINA_OUT_POSE"
+
+    if ! python3 "$PREP_POSES" \
+        -i "$TMP_SDF" \
+        -r "$GNINA_RECEPTOR" \
+        --pose_type gnina \
+        -o "$GNINA_OUT_POSE" \
+        -p "$pdbid" \
+        -v; then
+        echo "[WARN] prep_poses failed for $pdbid rank=$rank_tag" >&2
+        rm -f "$TMP_SDF"
+        continue
+    fi
+
+    rm -f "$TMP_SDF"
+
+    if [[ -s "$EXPECT_PROT" && -s "$EXPECT_LIGPDB" && -s "$EXPECT_LIGSDF" && -s "$EXPECT_LIGMOL2" ]]; then
+        echo "rank=$rank_tag $(date)" > "$DONE_MARKER"
+    else
+        echo "[WARN] prep_poses ran but expected outputs missing for $pdbid rank=$rank_tag" >&2
+    fi
+done
+
+rm -rf "$WORKDIR"
+echo
+

@@ -1,0 +1,253 @@
+#!/bin/bash --login
+#SBATCH --job-name=pose_prep_af3_top5
+#SBATCH --time=00:30:00
+#SBATCH --mem=32G
+#SBATCH --cpus-per-task=2
+#SBATCH --output=/mnt/scratch/jeaves/CASF-2016/af3/logs/%x_%j.out
+#SBATCH --error=/mnt/scratch/jeaves/CASF-2016/af3/logs/%x_%j.err
+
+set -euo pipefail
+
+module purge
+module load Miniforge3
+conda activate prep_env
+
+CSV_PATH='/mnt/research/woldring_lab/Members/Eaves/plip-plop/AF3/af3_rerun_14.csv'
+
+# Where AF3 actually wrote its outputs (per pdbid, containing seed-*_sample-* and ranking_scores.csv)
+IN_DIR='/mnt/scratch/jeaves/AF3/outputs'
+
+# Parent directory where we want pose-rank dataset folders (af3_best0001..0100)
+OUT_PARENT='/mnt/scratch/jeaves/CASF-2016'
+
+# Absolute path to prep_poses.py
+PREP_POSES='/mnt/research/woldring_lab/Members/Eaves/plip-plop/preprocessing/prep_poses.py'
+
+POSE_PREFIX='af3_best'
+TOPK=100
+
+mkdir -p "${OUT_PARENT}/af3/logs"
+
+echo "[INFO] Starting job on $(hostname) at $(date)"
+echo "[INFO] CSV: $CSV_PATH"
+echo "[INFO] IN_DIR (AF3 raw outputs): $IN_DIR"
+echo "[INFO] OUT_PARENT: $OUT_PARENT"
+echo "[INFO] POSE_PREFIX: $POSE_PREFIX"
+echo "[INFO] TOPK: $TOPK"
+echo
+
+rank_tag() {
+    printf '%04d' "$1"
+}
+
+find_pose_cif() {
+    local pose_dir="$1"
+    local pdbid="$2"
+
+    local cif=''
+    cif="$(
+        find "$pose_dir" -maxdepth 2 -type f \
+            \( -iname "${pdbid}_model*.cif" -o -iname '*model*.cif' \) \
+        | head -n 1
+    )"
+
+    if [[ -z "${cif:-}" ]]; then
+        cif="$(
+            find "$pose_dir" -maxdepth 2 -type f -iname '*.cif' \
+            | head -n 1
+        )"
+    fi
+
+    echo "$cif"
+}
+
+ensure_out_dirs() {
+    local k="$1"
+    local i=1
+    while [[ "$i" -le "$k" ]]; do
+        local tag
+        tag="$(rank_tag "$i")"
+        mkdir -p "${OUT_PARENT}/${POSE_PREFIX}${tag}/logs"
+        i=$((i + 1))
+    done
+}
+
+ensure_out_dirs "$TOPK"
+
+while IFS=',' read -r pdbid smiles sequence; do
+    pdbid="${pdbid//$'\r'/}"
+    pdbid="${pdbid//\"/}"
+    pdbid="$(echo "$pdbid" | xargs)"
+
+    [[ -z "${pdbid:-}" ]] && continue
+
+    echo "[INFO] ===== $pdbid ====="
+
+    AF3_SRC_DIR="${IN_DIR}/${pdbid}/${pdbid}"
+    if [[ ! -d "$AF3_SRC_DIR" ]]; then
+        echo "[WARN] AF3 output directory missing for $pdbid: $AF3_SRC_DIR" >&2
+        echo
+        continue
+    fi
+
+    RANK_CSV="${AF3_SRC_DIR}/ranking_scores.csv"
+    if [[ ! -s "$RANK_CSV" ]]; then
+        echo "[WARN] ranking_scores.csv missing for $pdbid: $RANK_CSV" >&2
+        echo "[WARN] Will rank by directory enumeration only (seed-*_sample-*)" >&2
+    fi
+
+    mapfile -t POSES < <(
+python3 - "$AF3_SRC_DIR" "$RANK_CSV" "$TOPK" <<'PY'
+import csv
+import math
+import os
+import re
+import sys
+
+af3_src_dir = sys.argv[1]
+rank_csv = sys.argv[2]
+topk = int(sys.argv[3])
+
+dir_pat = re.compile(r'^seed-(\d+)_sample-(\d+)$')
+
+# Enumerate all pose dirs present
+all_pairs = []
+for name in os.listdir(af3_src_dir):
+    m = dir_pat.match(name)
+    if not m:
+        continue
+    all_pairs.append((int(m.group(1)), int(m.group(2))))
+all_pairs.sort(key=lambda x: (x[0], x[1]))
+
+# Read scored pairs (if available)
+scored = {}
+if os.path.isfile(rank_csv) and os.path.getsize(rank_csv) > 0:
+    with open(rank_csv, newline='') as f:
+        r = csv.DictReader(f)
+        for row in r:
+            try:
+                seed = int(str(row.get('seed', '')).strip())
+                sample = int(str(row.get('sample', '')).strip())
+                score = float(str(row.get('ranking_score', '')).strip())
+            except Exception:
+                continue
+            scored[(seed, sample)] = score
+
+scored_list = [(seed, sample, scored[(seed, sample)]) for (seed, sample) in scored.keys()]
+scored_list.sort(key=lambda x: (-x[2], x[0], x[1]))
+
+seen = set()
+out = []
+
+# First: highest scored poses
+for seed, sample, score in scored_list:
+    if (seed, sample) in seen:
+        continue
+    seen.add((seed, sample))
+    out.append((seed, sample, score))
+    if len(out) >= topk:
+        break
+
+# Then: fill remaining from dirs that exist but had no score row
+if len(out) < topk:
+    for seed, sample in all_pairs:
+        if (seed, sample) in seen:
+            continue
+        seen.add((seed, sample))
+        out.append((seed, sample, float('nan')))
+        if len(out) >= topk:
+            break
+
+print(f'[INFO] poses_available={len(all_pairs)} scored_rows={len(scored)} selected={len(out)}', file=sys.stderr)
+
+for seed, sample, score in out:
+    if math.isnan(score):
+        print(f'{seed} {sample} nan')
+    else:
+        print(f'{seed} {sample} {score}')
+PY
+    )
+
+    if [[ "${#POSES[@]}" -lt 1 ]]; then
+        echo "[WARN] No poses parsed for $pdbid" >&2
+        echo
+        continue
+    fi
+
+    for idx in "${!POSES[@]}"; do
+        rank=$((idx + 1))
+        if [[ "$rank" -gt "$TOPK" ]]; then
+            continue
+        fi
+
+        IFS=' ' read -r seed sample score <<<"${POSES[$idx]}"
+
+        tag="$(rank_tag "$rank")"
+        POSE_OUT_BASE="${OUT_PARENT}/${POSE_PREFIX}${tag}"
+        PDB_OUT_DIR="${POSE_OUT_BASE}/${pdbid}"
+        mkdir -p "$PDB_OUT_DIR"
+
+        DONE_MARKER="${PDB_OUT_DIR}/DONE.marker"
+
+        if [[ -f "$DONE_MARKER" ]] && \
+           ls "$PDB_OUT_DIR"/*_protein.pdb "$PDB_OUT_DIR"/*_ligand.pdb "$PDB_OUT_DIR"/*_ligand.sdf "$PDB_OUT_DIR"/*_ligand.mol2 &>/dev/null; then
+            echo "[INFO] $pdbid rank=$tag already processed -> skipping"
+            continue
+        fi
+
+        POSE_DIR="${AF3_SRC_DIR}/seed-${seed}_sample-${sample}"
+        if [[ ! -d "$POSE_DIR" ]]; then
+            echo "[WARN] Missing pose directory for $pdbid rank=$tag: $POSE_DIR" >&2
+            continue
+        fi
+
+        AF3_CMPLX="$(find_pose_cif "$POSE_DIR" "$pdbid")"
+        if [[ -z "${AF3_CMPLX:-}" || ! -f "$AF3_CMPLX" ]]; then
+            echo "[WARN] No CIF found for $pdbid rank=$tag under $POSE_DIR" >&2
+            continue
+        fi
+
+        echo "[INFO] rank=$tag seed=$seed sample=$sample score=$score"
+        echo "[INFO] Using complex file: $AF3_CMPLX"
+
+        stem="$(basename "$AF3_CMPLX")"
+        stem="${stem%.*}"
+
+        EXPECT_PROT="${PDB_OUT_DIR}/${stem}_protein.pdb"
+        EXPECT_LIGPDB="${PDB_OUT_DIR}/${stem}_ligand.pdb"
+        EXPECT_LIGSDF="${PDB_OUT_DIR}/${stem}_ligand.sdf"
+        EXPECT_LIGMOL2="${PDB_OUT_DIR}/${stem}_ligand.mol2"
+
+        if [[ -s "$EXPECT_PROT" && -s "$EXPECT_LIGPDB" && -s "$EXPECT_LIGSDF" && -s "$EXPECT_LIGMOL2" ]]; then
+            echo "pdbid=$pdbid rank=$tag seed=$seed sample=$sample score=$score stem=$stem $(date)" > "$DONE_MARKER"
+            echo "[INFO] Outputs already present for $pdbid rank=$tag -> skipping prep_poses"
+            continue
+        fi
+
+        if ! python3 "$PREP_POSES" \
+            -i "$AF3_CMPLX" \
+            --pose_type af3 \
+            -o "$PDB_OUT_DIR" \
+            -p "$pdbid" \
+            -v; then
+            echo "[WARN] prep_poses failed for $pdbid rank=$tag" >&2
+            continue
+        fi
+
+        if [[ -s "$EXPECT_PROT" && -s "$EXPECT_LIGPDB" && -s "$EXPECT_LIGSDF" && -s "$EXPECT_LIGMOL2" ]]; then
+            echo "pdbid=$pdbid rank=$tag seed=$seed sample=$sample score=$score stem=$stem src=$AF3_CMPLX $(date)" > "$DONE_MARKER"
+        else
+            echo "[WARN] prep_poses ran but expected outputs missing for $pdbid rank=$tag" >&2
+            echo "[WARN] Expected:"
+            echo "[WARN]   $EXPECT_PROT"
+            echo "[WARN]   $EXPECT_LIGPDB"
+            echo "[WARN]   $EXPECT_LIGSDF"
+            echo "[WARN]   $EXPECT_LIGMOL2"
+        fi
+    done
+
+    echo
+
+done < <(tail -n +2 "$CSV_PATH")
+
+echo "[INFO] Finished at $(date)"

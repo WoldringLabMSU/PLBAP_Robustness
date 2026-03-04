@@ -1,0 +1,83 @@
+#!/bin/bash --login
+#SBATCH --job-name=pose_prep
+#SBATCH --time=03:59:00
+#SBATCH --mem=32G
+#SBATCH --cpus-per-task=2
+#SBATCH --output=/mnt/scratch/jeaves/CASF-2016/boltz2/logs/%x_%j.out
+#SBATCH --error=/mnt/scratch/jeaves/CASF-2016/boltz2/logs/%x_%j.err
+
+set -euo pipefail
+
+module purge
+module load Miniforge3
+conda activate prep_env
+
+CSV_PATH="/mnt/research/woldring_lab/Members/Eaves/plip-plop/AF3/casf2016_smiles_seqs.csv"
+IN_DIR="/mnt/scratch/jeaves/CASF-2016/docking"
+OUT_DIR="/mnt/scratch/jeaves/CASF-2016/boltz2"
+LOG_DIR="${OUT_DIR}/logs"
+
+mkdir -p "$OUT_DIR" "$LOG_DIR"
+
+echo "[INFO] Starting job on $(hostname) at $(date)"
+echo "[INFO] CSV: $CSV_PATH"
+echo "[INFO] IN_DIR: $IN_DIR"
+echo "[INFO] OUT_DIR: $OUT_DIR"
+echo
+
+while IFS=',' read -r pdbid smiles sequence; do
+    # sanitize pdbid (CRLF + accidental quotes/spaces)
+    pdbid="${pdbid//$'\r'/}"
+    pdbid="${pdbid//\"/}"
+    pdbid="$(echo "$pdbid" | xargs)"
+
+    [[ -z "${pdbid:-}" ]] && continue
+
+    echo "[INFO] ===== $pdbid ====="
+
+    BOLTZ_TAR="${IN_DIR}/${pdbid}/boltz.tar.gz"
+    BOLTZ_OUT="${OUT_DIR}/${pdbid}"
+    WORKDIR="${BOLTZ_OUT}/_extract"
+
+    mkdir -p "$BOLTZ_OUT"
+    rm -rf "$WORKDIR"
+    mkdir -p "$WORKDIR"
+
+    if [[ ! -f "$BOLTZ_TAR" ]]; then
+        echo "[WARN] Missing tar: $BOLTZ_TAR" >&2
+        continue
+    fi
+
+    echo "[INFO] Extracting: $BOLTZ_TAR -> $WORKDIR"
+    tar -xzf "$BOLTZ_TAR" -C "$WORKDIR"
+
+    # Prefer model_0 cif if present, otherwise any cif/mmcif
+    BOLTZ_CMPLX="$(
+        find "$WORKDIR" -type f \( -iname "*model_0*.cif" -o -iname "*model-0*.cif" -o -iname "*model0*.cif" -o -iname "*model_0*.mmcif" -o -iname "*model-0*.mmcif" -o -iname "*model0*.mmcif" \) \
+        | head -n 1
+    )"
+
+    if [[ -z "${BOLTZ_CMPLX:-}" ]]; then
+        echo "[WARN] No model_0 cif/mmcif found; falling back to any cif/mmcif" >&2
+        BOLTZ_CMPLX="$(find "$WORKDIR" -type f \( -iname "*.cif" -o -iname "*.mmcif" \) | head -n 1 || true)"
+    fi
+
+    if [[ -z "${BOLTZ_CMPLX:-}" ]]; then
+        echo "[ERROR] No cif/mmcif found after extraction for $pdbid" >&2
+        echo "[DEBUG] Tar contents:" >&2
+        tar -tzf "$BOLTZ_TAR" | head -n 200 >&2
+        continue
+    fi
+
+    echo "[INFO] Using complex file: $BOLTZ_CMPLX"
+    python3 prep_poses.py -i "$BOLTZ_CMPLX" --pose_type boltz2 -o "$BOLTZ_OUT" -v
+
+    echo "[INFO] prep_poses done; produced:"
+    ls -lh "$BOLTZ_OUT" | sed 's/^/  /'
+
+    rm -rf "$WORKDIR"
+    echo
+
+done < <(tail -n +2 "$CSV_PATH")
+
+echo "[INFO] Finished at $(date)"

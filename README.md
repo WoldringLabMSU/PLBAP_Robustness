@@ -97,7 +97,7 @@ Computes structural perturbations of generated structures relative to experiment
 
 ## Structure Generation
 
-All five structure sources were generated on the MSU HPCC and applied to the 285 CASF-2016 complexes. Raw structure files are available at [10.5281/zenodo.18701481](https://doi.org/10.5281/zenodo.18701481).
+All five structure sources were generated on the MSU HPCC and applied to the 285 CASF-2016 complexes. From each source, structures were cleaned and processed into individual protein (pdb) and ligand (pdb, sdf, and mol2) files. Prepped structure files are available at [10.5281/zenodo.18701481](https://doi.org/10.5281/zenodo.18701481).
 
 ### Crystal
 Experimental co-crystal structures were taken directly from the CASF-2016 benchmark set (PDBbind v2016). (Su et al. *J. Chem. Inf. Model.* 2019, 59, 895–913; Wang et al. *J. Med. Chem.* 2005, 48, 4111–4119)
@@ -113,6 +113,10 @@ Protein-ligand co-folding was performed with AlphaFold3 (Abramson et al. *Nature
 
 ### GNINA Docking into AlphaFold3 Receptors (GNINA-AF3)
 Protein-only AF3 structures were generated (same pipeline as above), aligned to the corresponding crystal receptor to transfer the binding-site coordinate frame, and used as rigid receptors for GNINA docking following the same protocol as GNINA-Crystal.
+
+### Preprocessing for PLBAP 
+All structures were preprocessed with the scripts in `preprocessing/`.
+
 
 ---
 
