@@ -1,0 +1,49 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: PLBAP_Robustness
+message: >-
+  If you use this dataset, please cite it using the metadata
+  from this file.
+type: dataset
+authors:
+  - given-names: Joelle
+    family-names: Eaves
+    email: jeaves@msu.edu
+    affiliation: Michigan State University
+    orcid: 'https://orcid.org/0000-0002-5918-5279'
+  - given-names: Daniel
+    family-names: Woldring
+    email: woldring@msu.edu
+    affiliation: Michigan State University
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.18701481
+    description: Zenodo data repo
+repository-code: 'https://github.com/WoldringLabMSU/PLBAP_Robustness'
+url: 'https://github.com/WoldringLabMSU/PLBAP_Robustness'
+abstract: >-
+  Structure-based deep learning models for protein-ligand
+  binding affinity prediction (PLBAP) are commonly
+  benchmarked on experimentally resolved co-crystal
+  structures, but real use-cases often rely on
+  computationally generated inputs. This repository contains
+  the code and aggregated results for a systematic study of
+  how PLBAP performance changes when five reproducible
+  pipelines are evaluated on: experimental co-crystal
+  structures (Crystal), GNINA rigid-receptor docking into
+  holo co-crystal receptors (GNINA-Crystal), GNINA
+  rigid-receptor docking into apo receptors (GNINA-Apo),
+  GNINA rigid-receptor docking into AlphaFold3-predicted
+  receptors (GNINA-AF3), and AlphaFold3 co-folding
+  (AlphaFold3). The five PLBAP models evaluated are
+  Dynaformer, EGNA, EHIGN-PLA, GIGN, and OnionNet-2,
+  benchmarked on the CASF-2016 dataset. Analyses address
+  three questions: (1) how much does PLBAP performance
+  degrade across structure sources, (2) does averaging
+  predictions over multiple generated poses recover
+  near-crystal performance, and (3) do protein-ligand
+  interaction distributions shift in ways that explain
+  performance differences.
+license: CC0-1.0
